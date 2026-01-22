@@ -3,6 +3,7 @@ import { DataGrid, GridCellModes, useGridApiRef } from '@mui/x-data-grid'
 import React from 'react';
 
 function App() {
+
   const rows = useStateProperty([
     new Register('var1', 'uint8', null, false, 'Описание'),
     new Register('var2', 'uint8', null, false, 'Описание'),
@@ -21,12 +22,17 @@ function App() {
   const dragGhostRef = React.useRef(null);
   const dropTargetId = React.useRef(null);
 
+  const dropIndicatorEl = React.useRef(null);
+  const lastIndicatorTargetId = React.useRef(null);
+  let lastIndicatorPosition = null;
+
+
   /**
    * @param {Register} newRow 
    * @param {Register} oldRow 
    */
   function handleProcessRowUpdate(newRow, oldRow) {
-    const index = rows.get.findIndex(row => getRowId(row) === getRowId(oldRow));
+    const index = rows.get.findIndex(row => getRowId(row) == getRowId(oldRow));
     if (index !== -1) {
       const newRows = [...rows.get];
       newRows[index] = new Register(newRow.name, newRow.type, newRow.bit, newRow.writable, newRow.description);
@@ -37,9 +43,9 @@ function App() {
   }
 
   function handleCellClick(params, event) {
-    if (event.target.nodeType === 1 && !event.currentTarget.contains(event.target)) return;
+    if (event.target.nodeType == 1 && !event.currentTarget.contains(event.target)) return;
 
-    if (params.isEditable && gridApi.current.getCellMode(params.id, params.field) === GridCellModes.View) {
+    if (params.isEditable && gridApi.current.getCellMode(params.id, params.field) == GridCellModes.View) {
       gridApi.current.startCellEditMode({ id: params.id, field: params.field });
     }
   }
@@ -52,9 +58,10 @@ function App() {
     return row.name;
   }
 
-  // ===== ЕДИНАЯ DRAG & DROP ЛОГИКА =====
+  // ==== ЕДИНАЯ DRAG & DROP ЛОГИКА ====
   function handleDragStart(e, rowId) {
     setDraggedRowId(rowId);
+
 
     // Создаем ghost изображение ТОЛЬКО для ПК (не добавляем в DOM)
     const ghost = document.createElement('div');
@@ -67,7 +74,7 @@ function App() {
     color: white; font-weight: 600; font-size: 14px;
     backdrop-filter: blur(10px);
     pointer-events: none;
-  `;
+    `;
     ghost.textContent = `Перетаскиваю: ${rowId}`;
 
     // НЕ добавляем в body - используем только для setDragImage
@@ -76,7 +83,7 @@ function App() {
 
     e.dataTransfer.setData('text/plain', rowId);
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setDragImage(ghost, 110, 30);
+    e.dataTransfer.setDragImage(ghost, 0, 0);
 
     // Удаляем ghost через микрозадержку (для корректной работы setDragImage)
     requestAnimationFrame(() => {
@@ -97,15 +104,25 @@ function App() {
     const ghost = document.createElement('div');
     ghost.id = 'drag-ghost';
     ghost.style.cssText = `
-      position: fixed; z-index: 9999; pointer-events: none; left: 20px; top: 20px;
-      width: 220px; height: 60px; border-radius: 12px;
+      position: fixed; 
+      z-index: 9999; 
+      pointer-events: none; 
+      left: 20px; top: 20px;
+      width: 220px; 
+      height: 60px; 
+      border-radius: 12px;
       background: linear-gradient(135deg, #1976d2, #42a5f5);
       box-shadow: 0 10px 30px rgba(25,118,210,0.4);
-      display: flex; align-items: center; padding: 0 16px;
-      color: white; font-weight: 600; font-size: 14px;
+      display: flex; 
+      align-items: center; 
+      padding: 0 16px;
+      opacity: 0.5;
+      color: white; 
+      font-weight: 600; 
+      font-size: 14px;
       backdrop-filter: blur(10px);
     `;
-    ghost.textContent = `Перетаскиваю: ${rowId}`;
+    ghost.textContent = `Перетаскиваю: ${rowId}. Встану на место ${lastIndicatorTargetId.current}`;
     document.body.appendChild(ghost);
     dragGhostRef.current = ghost;
   }
@@ -123,9 +140,13 @@ function App() {
     const targetRow = targetElement?.closest('.MuiDataGrid-row');
     const newTargetId = targetRow?.getAttribute('data-id');
 
-    if (newTargetId && newTargetId !== draggedRowId && newTargetId !== dropTargetId.current) {
+    if (newTargetId && newTargetId !== draggedRowId) {
+      // ✅ Для мобильных определяем позицию вставки
+      const rect = targetRow.getBoundingClientRect();
+      const y = touch.clientY - rect.top;
+      const position = y < rect.height / 2 ? 'above' : 'below';
       dropTargetId.current = newTargetId;
-      updateDropTarget(newTargetId);
+      updateDropIndicator(newTargetId, position);
     }
   }
 
@@ -137,13 +158,90 @@ function App() {
     const targetRowId = targetElement?.closest('.MuiDataGrid-row')?.getAttribute('data-id');
 
     if (targetRowId && targetRowId !== draggedRowId) {
-      moveRow(draggedRowId, targetRowId);
+      // ✅ Точное позиционирование и для touch
+      const targetRow = document.querySelector(`[data-id="${targetRowId}"]`);
+      const rect = targetRow.getBoundingClientRect();
+      const position = touch.clientY - rect.top < rect.height / 2 ? 0 : 1;
+      moveRowToPosition(draggedRowId, targetRowId, position);
     }
 
     cleanupDrag();
   }
 
-  function moveRow(sourceId, targetId) {
+  function cleanupDrag() {
+    setDraggedRowId(null);
+    dropTargetId.current = null;
+
+    if (dropIndicatorEl.current) {
+      dropIndicatorEl.current.style.display = 'none';
+    }
+    lastIndicatorTargetId.current = null;
+    lastIndicatorPosition = null;
+
+    if (dragGhostRef.current) {
+      try {
+        document.body.removeChild(dragGhostRef.current);
+      } catch (e) { }
+      dragGhostRef.current = null;
+    }
+
+    document.body.style.overscrollBehaviorY = '';
+  }
+
+
+
+  // Замените функцию updateDropTarget:
+  function updateDropIndicator(targetId, position) {
+    if (!targetId || !position) {
+      if (dropIndicatorEl.current) {
+        dropIndicatorEl.current.style.display = 'none';
+      }
+      lastIndicatorTargetId.current = null;
+      lastIndicatorPosition = null;
+      return;
+    }
+
+    const targetRow = document.querySelector(`[data-id="${targetId}"]`);
+    if (!targetRow) return;
+
+    // ✅ Создаем индикатор ТОЛЬКО ОДИН РАЗ
+    if (!dropIndicatorEl.current) {
+      dropIndicatorEl.current = document.createElement('div');
+      dropIndicatorEl.current.className = 'drop-indicator';
+      dropIndicatorEl.current.style.cssText = `
+      position: fixed !important;
+      height: 4px;
+      background: linear-gradient(90deg, #2196f3, #42a5f5) !important;
+      border-radius: 2px;
+      box-shadow: 0 2px 8px rgba(33, 150, 243, 0.4);
+      z-index: 10000 !important;
+      pointer-events: none !important;
+      display: none;
+    `;
+      document.body.appendChild(dropIndicatorEl.current);
+    }
+
+    // ✅ НЕ перемещаем если позиция не изменилась (убирает pixel hunting)
+    const positionKey = `${targetId}-${position}`;
+    if (lastIndicatorTargetId.current === targetId && lastIndicatorPosition === position) {
+      return;
+    }
+
+    lastIndicatorTargetId.current = targetId;
+    lastIndicatorPosition = position;
+
+    // ✅ ТОЧНО позиционируем относительно границ строки
+    const rect = targetRow.getBoundingClientRect();
+    const indicatorTop = position === 'above' ? rect.top : rect.bottom;
+
+    dropIndicatorEl.current.style.left = `${rect.left}px`;
+    dropIndicatorEl.current.style.top = `${indicatorTop}px`;
+    dropIndicatorEl.current.style.width = `${rect.width}px`;
+    dropIndicatorEl.current.style.display = 'block';
+  }
+
+
+  function moveRowToPosition(sourceId, targetId, position) {
     const sourceIndex = rows.get.findIndex(row => getRowId(row) === sourceId);
     const targetIndex = rows.get.findIndex(row => getRowId(row) === targetId);
 
@@ -151,39 +249,20 @@ function App() {
 
     const newRows = [...rows.get];
     const [movedRow] = newRows.splice(sourceIndex, 1);
-    newRows.splice(targetIndex, 0, movedRow);
+
+    const newTargetIndex = newRows.findIndex(row => getRowId(row) === targetId);
+
+    // position 0 = ПЕРЕД target, 1 = ПОСЛЕ target
+    let insertIndex = position === 0 ? newTargetIndex : newTargetIndex + 1;
+
+    // ✅ КРАЕВЫЕ СЛУЧАИ
+    if (insertIndex < 0) insertIndex = 0;
+    if (insertIndex > newRows.length) insertIndex = newRows.length;
+    newRows.splice(insertIndex, 0, movedRow);
     rows.set(newRows);
   }
 
-  function updateDropTarget(targetId) {
-    document.querySelectorAll('.drop-highlight').forEach(el => {
-      el.classList.remove('drop-highlight');
-    });
-    const targetRow = document.querySelector(`[data-id="${targetId}"]`);
-    if (targetRow) targetRow.classList.add('drop-highlight');
-  }
-
-  function cleanupDrag() {
-    setDraggedRowId(null);
-    dropTargetId.current = null;
-
-    // Ghost для ПК уже удален в handleDragStart
-    if (dragGhostRef.current) {
-      try {
-        document.body.removeChild(dragGhostRef.current);
-      } catch (e) {
-        // Игнорируем если уже удален
-      }
-      dragGhostRef.current = null;
-    }
-
-    document.body.style.overscrollBehaviorY = '';
-    document.querySelectorAll('.drop-highlight').forEach(el => {
-      el.classList.remove('drop-highlight');
-    });
-  }
-
-  // ===== ЕДИНЫЙ useEffect для всех drag событий =====
+  // ==== ЕДИНЫЙ useEffect для всех drag событий ====
   React.useEffect(() => {
     if (!draggedRowId) return;
 
@@ -191,25 +270,20 @@ function App() {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
 
-      // Находим ближайшую строку даже из дочерних элементов
       const targetRow = e.target.closest('.MuiDataGrid-row');
       if (targetRow) {
         const targetId = targetRow.getAttribute('data-id');
-        if (targetId && targetId !== draggedRowId && targetId !== dropTargetId.current) {
-          dropTargetId.current = targetId;
-          updateDropTarget(targetId);
+        if (targetId && targetId !== draggedRowId) {
+          const rect = targetRow.getBoundingClientRect();
+          const y = e.clientY - rect.top;
+          const position = y < rect.height / 2 ? 'above' : 'below';
+          updateDropIndicator(targetId, position);
         }
       }
     };
 
-    const handleDragEnter = (e) => {
-      // Простая логика - только preventDefault для бабллинга
-      e.preventDefault();
-    };
-
-    const handleDragLeave = (e) => {
-      // Игнорируем leave, т.к. используем логику из dragover
-    };
+    const handleDragEnter = (e) => e.preventDefault();
+    const handleDragLeave = () => { };
 
     const handleDrop = (e) => {
       e.preventDefault();
@@ -218,12 +292,13 @@ function App() {
       const targetId = targetRow?.getAttribute('data-id');
 
       if (rowId && targetId && rowId !== targetId) {
-        moveRow(rowId, targetId);
+        const rect = targetRow.getBoundingClientRect();
+        const position = e.clientY - rect.top < rect.height / 2 ? 0 : 1;
+        moveRowToPosition(rowId, targetId, position);
       }
       cleanupDrag();
     };
 
-    // ✅ КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: слушаем на КОНТЕЙНЕРЕ таблицы, а не на отдельных строках
     const gridContainer = document.querySelector('.MuiDataGrid-root');
     if (gridContainer) {
       gridContainer.addEventListener('dragover', handleDragOver);
@@ -240,7 +315,9 @@ function App() {
         gridContainer.removeEventListener('drop', handleDrop);
       }
     };
-  }, [draggedRowId, rows.get]);
+  }, [draggedRowId]);
+
+
 
   return (
     <DataGrid
@@ -255,14 +332,13 @@ function App() {
       showColumnVerticalBorder={true}
       showToolbar={true}
       hideFooter={true}
-      rowHeight={56}
       onCellClick={handleCellClick}
       getRowId={getRowId}
       processRowUpdate={handleProcessRowUpdate}
       onProcessRowUpdateError={handleRowUpdateError}
       columns={[
         {
-          field: 'drag', headerName: 'drag', editable: false, sortable: false, width: 50,
+          field: 'drag', headerName: 'drag', editable: false, sortable: false,
           renderCell: (params) => (
             <Box sx={{
               width: '100%',
@@ -307,27 +383,7 @@ function App() {
             </Box>
           )
         },
-        {
-          field: 'name', headerName: 'Название', editable: true, sortable: false, flex: 1,
-          valueGetter: (value) => value ?? '',
-        },
-        {
-          field: 'type', headerName: 'Тип', editable: true, type: 'singleSelect', sortable: false, width: 80,
-          valueOptions: ['uint8', 'uint16', 'uint32'],
-          valueSetter: (value, row) => ({ ...row, type: value, bit: null }),
-        },
-        {
-          field: 'bit', headerName: 'Бит', editable: true, type: 'singleSelect', width: 60, sortable: false,
-          valueOptions: (params) => {
-            const maxBitValue = 15 * 8;
-            const bits = ['-'];
-            for (let i = 0; i < maxBitValue; i++) bits.push(i);
-            return bits;
-          },
-          valueGetter: (value) => value == null ? '-' : `${value}`,
-          valueFormatter: (value) => value == '-' ? '' : `${value}`,
-        },
-        { field: 'description', headerName: 'Описание', editable: true, flex: 1 },
+        { field: 'name', headerName: 'Название', editable: true, sortable: false, flex: 1, valueGetter: (value) => value ?? '' },
       ]}
     />
   )
@@ -344,43 +400,24 @@ const ResponsibleDataGrid = css`
     &[data-id] {
       position: relative;
     }
-    
-    &.drop-highlight {
-      background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%) !important;
-      transform: translateY(-2px) scale(1.01) !important;
-      box-shadow: 0 8px 25px rgba(33, 150, 243, 0.3) !important;
-      border-left: 4px solid #2196f3 !important;
-      z-index: 10 !important;
-    }
   }
   
   @media(max-width: 768px) {
-    .toolBar > * {
-      display: flex;
-      flex-direction: column;
+    .toolBar > * { 
+      display: flex; 
+      flex-direction: column; 
     }
-    .MuiDataGrid-row {
-      min-height: 64px !important;
+    .MuiDataGrid-row { 
+      min-height: 64px !important; 
     }
   }
   
   & .duplicate-warning {
     background: linear-gradient(90deg, #fff3cd 0%, #ffeaa7 100%) !important;
     box-shadow: inset 0 0 0 2px #ffc107;
-    animation: duplicatePulse 1.5s infinite;
-  }
-  
-  @keyframes duplicatePulse {
-    0%, 100% { 
-      opacity: 1; 
-      transform: scale(1);
-    }
-    50% { 
-      opacity: 0.7;
-      transform: scale(1.02);
-    }
   }
 `;
+
 
 // useStateProperty и Register БЕЗ ИЗМЕНЕНИЙ
 function useStateProperty(initialValue, debugText = '') {
