@@ -68,7 +68,6 @@ function App() {
 
   function handleTouchStart(e, rowId) {
     if (!e.cancelable) return;
-    e.preventDefault();
 
     document.body.style.overscrollBehaviorY = 'none';
     setDraggedRowId(rowId);
