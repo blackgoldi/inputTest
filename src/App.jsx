@@ -60,10 +60,39 @@ function App() {
     return row.name;
   }
 
-  // ===== DRAG & DROP LOGIC =====
+  // ===== ЕДИНАЯ DRAG & DROP ЛОГИКА =====
   function handleDragStart(e, rowId) {
+    setDraggedRowId(rowId);
+
+    // Создаем ghost изображение ТОЛЬКО для ПК (не добавляем в DOM)
+    const ghost = document.createElement('div');
+    ghost.id = 'drag-ghost';
+    ghost.style.cssText = `
+    width: 220px; height: 60px; border-radius: 12px;
+    background: linear-gradient(135deg, #1976d2, #42a5f5);
+    box-shadow: 0 10px 30px rgba(25,118,210,0.4);
+    display: flex; align-items: center; padding: 0 16px;
+    color: white; font-weight: 600; font-size: 14px;
+    backdrop-filter: blur(10px);
+    pointer-events: none;
+  `;
+    ghost.textContent = `Перетаскиваю: ${rowId}`;
+
+    // НЕ добавляем в body - используем только для setDragImage
+    document.body.appendChild(ghost);
+    dragGhostRef.current = ghost;
+
     e.dataTransfer.setData('text/plain', rowId);
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setDragImage(ghost, 110, 30);
+
+    // Удаляем ghost через микрозадержку (для корректной работы setDragImage)
+    requestAnimationFrame(() => {
+      if (dragGhostRef.current) {
+        document.body.removeChild(dragGhostRef.current);
+        dragGhostRef.current = null;
+      }
+    });
   }
 
   function handleTouchStart(e, rowId) {
@@ -72,7 +101,7 @@ function App() {
     document.body.style.overscrollBehaviorY = 'none';
     setDraggedRowId(rowId);
 
-    // Создаем ghost элемент
+    // Создаем ghost элемент для мобильных
     const ghost = document.createElement('div');
     ghost.id = 'drag-ghost';
     ghost.style.cssText = `
@@ -146,8 +175,13 @@ function App() {
     setDraggedRowId(null);
     dropTargetId.current = null;
 
+    // Ghost для ПК уже удален в handleDragStart
     if (dragGhostRef.current) {
-      document.body.removeChild(dragGhostRef.current);
+      try {
+        document.body.removeChild(dragGhostRef.current);
+      } catch (e) {
+        // Игнорируем если уже удален
+      }
       dragGhostRef.current = null;
     }
 
@@ -157,30 +191,64 @@ function App() {
     });
   }
 
-  // ПК Drag & Drop обработчики
+  // ===== ЕДИНЫЙ useEffect для всех drag событий =====
   React.useEffect(() => {
+    if (!draggedRowId) return;
+
     const handleDragOver = (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
+
+      // Находим ближайшую строку даже из дочерних элементов
+      const targetRow = e.target.closest('.MuiDataGrid-row');
+      if (targetRow) {
+        const targetId = targetRow.getAttribute('data-id');
+        if (targetId && targetId !== draggedRowId && targetId !== dropTargetId.current) {
+          dropTargetId.current = targetId;
+          updateDropTarget(targetId);
+        }
+      }
+    };
+
+    const handleDragEnter = (e) => {
+      // Простая логика - только preventDefault для бабллинга
+      e.preventDefault();
+    };
+
+    const handleDragLeave = (e) => {
+      // Игнорируем leave, т.к. используем логику из dragover
     };
 
     const handleDrop = (e) => {
       e.preventDefault();
       const rowId = e.dataTransfer.getData('text/plain');
-      const targetId = e.currentTarget.getAttribute('data-id');
+      const targetRow = e.target.closest('.MuiDataGrid-row');
+      const targetId = targetRow?.getAttribute('data-id');
+
       if (rowId && targetId && rowId !== targetId) {
         moveRow(rowId, targetId);
       }
       cleanupDrag();
     };
 
-    document.addEventListener('dragover', handleDragOver);
-    document.addEventListener('drop', handleDrop);
+    // ✅ КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: слушаем на КОНТЕЙНЕРЕ таблицы, а не на отдельных строках
+    const gridContainer = document.querySelector('.MuiDataGrid-root');
+    if (gridContainer) {
+      gridContainer.addEventListener('dragover', handleDragOver);
+      gridContainer.addEventListener('dragenter', handleDragEnter);
+      gridContainer.addEventListener('dragleave', handleDragLeave);
+      gridContainer.addEventListener('drop', handleDrop);
+    }
+
     return () => {
-      document.removeEventListener('dragover', handleDragOver);
-      document.removeEventListener('drop', handleDrop);
+      if (gridContainer) {
+        gridContainer.removeEventListener('dragover', handleDragOver);
+        gridContainer.removeEventListener('dragenter', handleDragEnter);
+        gridContainer.removeEventListener('dragleave', handleDragLeave);
+        gridContainer.removeEventListener('drop', handleDrop);
+      }
     };
-  }, [rows]);
+  }, [draggedRowId, rows.get]);
 
   return (
     <DataGrid
@@ -254,7 +322,7 @@ function App() {
         },
         {
           field: 'type', headerName: 'Тип', editable: true, type: 'singleSelect', sortable: false, width: 80,
-          valueOptions: ['uint8', 'uint16', 'uint32'], // Добавил варианты
+          valueOptions: ['uint8', 'uint16', 'uint32'],
           valueSetter: (value, row) => ({ ...row, type: value, bit: null }),
         },
         {
@@ -352,4 +420,4 @@ class Register {
   }
 }
 
-export default App
+export default App;
