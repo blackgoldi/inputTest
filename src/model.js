@@ -1,4 +1,4 @@
-import React from 'react';
+п»їimport React from 'react';
 
 export class Register {
     constructor(name, type, bit, writable, description) {
@@ -11,19 +11,19 @@ export class Register {
 }
 
 export const model = [
-    new Register('var1', 'uint8', null, false, 'Описание'),
-    new Register('var2', 'uint8', null, false, 'Описание'),
-    new Register('var3', 'uint8', null, false, 'Описание'),
-    new Register('var4', 'uint8', null, false, 'Описание'),
-    new Register('var5', 'uint8', null, false, 'Описание'),
-    new Register('var6', 'uint8', null, false, 'Описание'),
-    new Register('var7', 'uint8', null, false, 'Описание'),
-    new Register('var8', 'uint8', null, false, 'Описание'),
-    new Register('var9', 'uint8', null, false, 'Описание'),
-    new Register('var10', 'uint8', null, false, 'Описание'),
+    new Register('var1', 'uint8', null, false, 'РћРїРёСЃР°РЅРёРµ'),
+    new Register('var2', 'uint8', null, false, 'РћРїРёСЃР°РЅРёРµ'),
+    new Register('var3', 'uint8', null, false, 'РћРїРёСЃР°РЅРёРµ'),
+    new Register('var4', 'uint8', null, false, 'РћРїРёСЃР°РЅРёРµ'),
+    new Register('var5', 'uint8', null, false, 'РћРїРёСЃР°РЅРёРµ'),
+    new Register('var6', 'uint8', null, false, 'РћРїРёСЃР°РЅРёРµ'),
+    new Register('var7', 'uint8', null, false, 'РћРїРёСЃР°РЅРёРµ'),
+    new Register('var8', 'uint8', null, false, 'РћРїРёСЃР°РЅРёРµ'),
+    new Register('var9', 'uint8', null, false, 'РћРїРёСЃР°РЅРёРµ'),
+    new Register('var10', 'uint8', null, false, 'РћРїРёСЃР°РЅРёРµ'),
 ];
 
-// useStateProperty и Register БЕЗ ИЗМЕНЕНИЙ
+// useStateProperty Рё Register Р‘Р•Р— РР—РњР•РќР•РќРР™
 export function useStateProperty(initialValue, debugText = '') {
     const [state, setState] = React.useState(initialValue);
     const setter = (value) => {
@@ -43,9 +43,9 @@ export function useStateProperty(initialValue, debugText = '') {
 }
 
 /*
-- нет переносимости решения в самостоятельный компонент
-- с момента setDragImage нельзя делать ререндеринг страницы
-- enter и leave не синхронизированы. + leave срабатывает когда не следует
-- логика переусложнена, причем нейронкой
-- если на мобилке в момент начала драга держать палец слишком долго (после события touch start, но не вызывая touch move), то сработает событие drag_start. И все стили драг-дропа сломаются
+- РЅРµС‚ РїРµСЂРµРЅРѕСЃРёРјРѕСЃС‚Рё СЂРµС€РµРЅРёСЏ РІ СЃР°РјРѕСЃС‚РѕСЏС‚РµР»СЊРЅС‹Р№ РєРѕРјРїРѕРЅРµРЅС‚
+- СЃ РјРѕРјРµРЅС‚Р° setDragImage РЅРµР»СЊР·СЏ РґРµР»Р°С‚СЊ СЂРµСЂРµРЅРґРµСЂРёРЅРі СЃС‚СЂР°РЅРёС†С‹
+- enter Рё leave РЅРµ СЃРёРЅС…СЂРѕРЅРёР·РёСЂРѕРІР°РЅС‹. + leave СЃСЂР°Р±Р°С‚С‹РІР°РµС‚ РєРѕРіРґР° РЅРµ СЃР»РµРґСѓРµС‚
+- Р»РѕРіРёРєР° РїРµСЂРµСѓСЃР»РѕР¶РЅРµРЅР°, РїСЂРёС‡РµРј РЅРµР№СЂРѕРЅРєРѕР№
+- РµСЃР»Рё РЅР° РјРѕР±РёР»РєРµ РІ РјРѕРјРµРЅС‚ РЅР°С‡Р°Р»Р° РґСЂР°РіР° РґРµСЂР¶Р°С‚СЊ РїР°Р»РµС† СЃР»РёС€РєРѕРј РґРѕР»РіРѕ (РїРѕСЃР»Рµ СЃРѕР±С‹С‚РёСЏ touch start, РЅРѕ РЅРµ РІС‹Р·С‹РІР°СЏ touch move), С‚Рѕ СЃСЂР°Р±РѕС‚Р°РµС‚ СЃРѕР±С‹С‚РёРµ drag_start. Р РІСЃРµ СЃС‚РёР»Рё РґСЂР°Рі-РґСЂРѕРїР° СЃР»РѕРјР°СЋС‚СЃСЏ
 */
