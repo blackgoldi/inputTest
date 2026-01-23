@@ -7,7 +7,64 @@ export function Grid({ }) {
 
 	const rows = useStateProperty(model);
 
+	// ✅ Добавьте после ref'ов:
+	const customGhost = React.useRef(null);
+	const ghostMoveHandler = React.useRef(null);
+
+	// ✅ ЕДИНАЯ ФУНКЦИЯ для ВСЕХ устройств
+	function createGhost(rowId, isTouch = false) {
+		// Очистка старого
+		if (customGhost.current) {
+			document.body.removeChild(customGhost.current);
+		}
+
+		const ghost = document.createElement('div');
+		ghost.id = 'custom-drag-ghost';
+
+		ghost.innerHTML = `
+    <div style="
+      width:24px;height:36px;margin-right:12px;display:flex;flex-direction:column;
+      justify-content:center;gap:2px;
+    ">
+      <div style="width:3px;height:10px;background:#fff;border-radius:1px;"></div>
+      <div style="width:3px;height:10px;background:#fff;border-radius:1px;"></div>
+      <div style="width:3px;height:10px;background:#fff;border-radius:1px;"></div>
+    </div>
+    <span style="font-weight:600;font-size:14px;line-height:1.2;">
+      Перетаскиваю: <strong>${rowId}</strong>
+    </span>
+  `;
+
+		ghost.style.cssText = `
+    position:fixed;z-index:99999;pointer-events:none;
+    width:240px;height:64px;border-radius:12px;
+    background:linear-gradient(135deg,#1976d2 0%,#42a5f5 50%,#2196f5 100%);
+    box-shadow:0 12px 40px rgba(25,118,210,.5);
+    backdrop-filter:blur(12px);display:flex;align-items:center;padding:12px 16px;
+    color:#fff;font-family:system-ui,-apple-system,sans-serif;opacity:1;
+    ${isTouch ? 'transform:scale(1.05);' : ''}
+  `;
+
+		document.body.appendChild(ghost);
+		customGhost.current = ghost;
+
+		// Функция перемещения
+		const moveGhost = isTouch ? (e) => {
+			const touch = e.touches[0];
+			ghost.style.left = `${touch.clientX - 120}px`;
+			ghost.style.top = `${touch.clientY - 32}px`;
+		} : (e) => {
+			ghost.style.left = `${e.clientX - 120}px`;
+			ghost.style.top = `${e.clientY - 32}px`;
+		};
+
+		ghostMoveHandler.current = moveGhost;
+		return moveGhost;
+	}
+
 	const gridApi = useGridApiRef();
+	const gridRef = React.useRef(null);
+
 	const [draggedRowId, setDraggedRowId] = React.useState(null);
 	const dragGhostRef = React.useRef(null);
 	const dropTargetId = React.useRef(null);
@@ -15,7 +72,6 @@ export function Grid({ }) {
 	const dropIndicatorEl = React.useRef(null);
 	const lastIndicatorTargetId = React.useRef(null);
 	let lastIndicatorPosition = null;
-
 
 	/**
 	 * @param {Register} newRow 
@@ -50,74 +106,46 @@ export function Grid({ }) {
 
 	// ==== ЕДИНАЯ DRAG & DROP ЛОГИКА ====
 	function handleDragStart(e, rowId) {
+		console.log('drag start');
 		setDraggedRowId(rowId);
 
+		const moveGhost = createGhost(rowId, false); // ПК
+		document.addEventListener('mousemove', moveGhost);
 
-		// Создаем ghost изображение ТОЛЬКО для ПК (не добавляем в DOM)
-		const ghost = document.createElement('div');
-		ghost.id = 'drag-ghost';
-		ghost.style.cssText = `
-	width: 220px; height: 60px; border-radius: 12px;
-	background: linear-gradient(135deg, #1976d2, #42a5f5);
-	box-shadow: 0 10px 30px rgba(25,118,210,0.4);
-	display: flex; align-items: center; padding: 0 16px;
-	color: white; font-weight: 600; font-size: 14px;
-	backdrop-filter: blur(10px);
-	pointer-events: none;
-	`;
-		ghost.textContent = `Перетаскиваю: ${rowId}`;
+		document.addEventListener('dragend', () => {
+			document.removeEventListener('mousemove', moveGhost);
+			if (customGhost.current) {
+				document.body.removeChild(customGhost.current);
+				customGhost.current = null;
+			}
+		}, { once: true });
 
-		// НЕ добавляем в body - используем только для setDragImage
-		document.body.appendChild(ghost);
-		dragGhostRef.current = ghost;
-
+		// БЕЗ setDragImage - браузерный ghost не нужен
 		e.dataTransfer.setData('text/plain', rowId);
 		e.dataTransfer.effectAllowed = 'move';
-		e.dataTransfer.setDragImage(ghost, 0, 0);
-
-		// Удаляем ghost через микрозадержку (для корректной работы setDragImage)
-		requestAnimationFrame(() => {
-			if (dragGhostRef.current) {
-				document.body.removeChild(dragGhostRef.current);
-				dragGhostRef.current = null;
-			}
-		});
 	}
 
 	function handleTouchStart(e, rowId) {
+		console.log('touch start');
 		if (!e.cancelable) return;
 
 		document.body.style.overscrollBehaviorY = 'none';
 		setDraggedRowId(rowId);
 
-		// Создаем ghost элемент для мобильных
-		const ghost = document.createElement('div');
-		ghost.id = 'drag-ghost';
-		ghost.style.cssText = `
-	  position: fixed; 
-	  z-index: 9999; 
-	  pointer-events: none; 
-	  left: 20px; top: 20px;
-	  width: 220px; 
-	  height: 60px; 
-	  border-radius: 12px;
-	  background: linear-gradient(135deg, #1976d2, #42a5f5);
-	  box-shadow: 0 10px 30px rgba(25,118,210,0.4);
-	  display: flex; 
-	  align-items: center; 
-	  padding: 0 16px;
-	  opacity: 0.5;
-	  color: white; 
-	  font-weight: 600; 
-	  font-size: 14px;
-	  backdrop-filter: blur(10px);
-	`;
-		ghost.textContent = `Перетаскиваю: ${rowId}. Встану на место ${lastIndicatorTargetId.current}`;
-		document.body.appendChild(ghost);
-		dragGhostRef.current = ghost;
+		const moveGhost = createGhost(rowId, true); // Touch
+		document.addEventListener('touchmove', moveGhost, { passive: false });
+
+		document.addEventListener('touchend', () => {
+			document.removeEventListener('touchmove', moveGhost);
+			if (customGhost.current) {
+				document.body.removeChild(customGhost.current);
+				customGhost.current = null;
+			}
+		}, { once: true });
 	}
 
 	function handleTouchMove(e) {
+		console.log('touch move');
 		if (!draggedRowId || !dragGhostRef.current) return;
 
 		const touch = e.touches[0];
@@ -141,15 +169,15 @@ export function Grid({ }) {
 	}
 
 	function handleTouchEnd(e) {
+		console.log('touch end');
 		if (!draggedRowId) return;
-
 		const touch = e.changedTouches[0];
 		const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
 		const targetRowId = targetElement?.closest('.MuiDataGrid-row')?.getAttribute('data-id');
 
 		if (targetRowId && targetRowId !== draggedRowId) {
 			// ✅ Точное позиционирование и для touch
-			const targetRow = document.querySelector(`[data-id="${targetRowId}"]`);
+			const targetRow = gridRef.current.querySelector(`[data-id="${targetRowId}"]`);
 			const rect = targetRow.getBoundingClientRect();
 			const position = touch.clientY - rect.top < rect.height / 2 ? 0 : 1;
 			moveRowToPosition(draggedRowId, targetRowId, position);
@@ -168,17 +196,8 @@ export function Grid({ }) {
 		lastIndicatorTargetId.current = null;
 		lastIndicatorPosition = null;
 
-		if (dragGhostRef.current) {
-			try {
-				document.body.removeChild(dragGhostRef.current);
-			} catch (e) { }
-			dragGhostRef.current = null;
-		}
-
-		document.body.style.overscrollBehaviorY = '';
+		// Ghost очищается автоматически в dragend/touchend
 	}
-
-
 
 	// Замените функцию updateDropTarget:
 	function updateDropIndicator(targetId, position) {
@@ -191,7 +210,7 @@ export function Grid({ }) {
 			return;
 		}
 
-		const targetRow = document.querySelector(`[data-id="${targetId}"]`);
+		const targetRow = gridRef.current.querySelector(`[data-id="${targetId}"]`);
 		if (!targetRow) return;
 
 		// ✅ Создаем индикатор ТОЛЬКО ОДИН РАЗ
@@ -199,15 +218,15 @@ export function Grid({ }) {
 			dropIndicatorEl.current = document.createElement('div');
 			dropIndicatorEl.current.className = 'drop-indicator';
 			dropIndicatorEl.current.style.cssText = `
-	  position: fixed !important;
-	  height: 4px;
-	  background: linear-gradient(90deg, #2196f3, #42a5f5) !important;
-	  border-radius: 2px;
-	  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.4);
-	  z-index: 10000 !important;
-	  pointer-events: none !important;
-	  display: none;
-	`;
+				  position: fixed !important;
+				  height: 4px;
+				  background: linear-gradient(90deg, #2196f3, #42a5f5) !important;
+				  border-radius: 2px;
+				  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.4);
+				  z-index: 10000 !important;
+				  pointer-events: none !important;
+				  display: none;
+			`;
 			document.body.appendChild(dropIndicatorEl.current);
 		}
 
@@ -272,10 +291,8 @@ export function Grid({ }) {
 			}
 		};
 
-		const handleDragEnter = (e) => e.preventDefault();
-		const handleDragLeave = () => { };
-
 		const handleDrop = (e) => {
+			console.log('drop');
 			e.preventDefault();
 			const rowId = e.dataTransfer.getData('text/plain');
 			const targetRow = e.target.closest('.MuiDataGrid-row');
@@ -289,7 +306,11 @@ export function Grid({ }) {
 			cleanupDrag();
 		};
 
-		const gridContainer = document.querySelector('.MuiDataGrid-root');
+		const handleDragEnter = (e) => e.preventDefault();
+
+		const handleDragLeave = (e) => { console.log('drag leave') };
+
+		const gridContainer = gridRef.current;
 		if (gridContainer) {
 			gridContainer.addEventListener('dragover', handleDragOver);
 			gridContainer.addEventListener('dragenter', handleDragEnter);
@@ -307,13 +328,12 @@ export function Grid({ }) {
 		};
 	}, [draggedRowId]);
 
-
-
 	return (
 		<DataGrid
-			sx={ResponsibleDataGrid}
+			ref={gridRef}
 			apiRef={gridApi}
 			rows={rows.get}
+			sx={ResponsibleDataGrid}
 			editMode="cell"
 			disableColumnMenu={true}
 			hideFooterSelectedRowCount={true}
@@ -328,7 +348,7 @@ export function Grid({ }) {
 			onProcessRowUpdateError={handleRowUpdateError}
 			columns={[
 				{
-					field: 'drag', headerName: 'drag', editable: false, sortable: false,
+					field: 'drag', headerName: 'drag2', editable: false, sortable: false,
 					renderCell: (params) => (
 						<Box sx={{
 							width: '100%',

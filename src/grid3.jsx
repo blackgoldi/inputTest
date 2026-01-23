@@ -71,11 +71,16 @@ export function Grid3({ }) {
 		console.log('drag start', row.id);
 		dragging.current.startFrom(row);
 		ghostRef.current.textContent = `Перетаскиваю: ${dragging.current.draggedRow.name}`;
-		e.dataTransfer.setDragImage(ghostRef.current, ghostRef.current.offsetWidth / 2, ghostRef.current.offsetHeight / 2);
+		// e.dataTransfer.setDragImage(ghostRef.current, ghostRef.current.offsetWidth / 2, ghostRef.current.offsetHeight / 2);
 	}
 
 	function handleDragOver(e, row) {
 		console.log('drag over', row.id);
+
+		ghostRef.current.style.display = 'flex';
+		ghostRef.current.style.top = `${e.clientY}px`;
+		ghostRef.current.style.left = `${e.clientX}px`;
+
 		const next_row = rows.get[rows.get.indexOf(dragging.current.draggedRow) + 1];
 		if (row != dragging.current.draggedRow && row != next_row) {
 			e.preventDefault();
@@ -100,6 +105,7 @@ export function Grid3({ }) {
 		];
 		rows.set(new_rows);
 		dragging.current.end();
+		ghostRef.current.style.display = 'none';
 	}
 
 	function handleDragEnd(e, row) {
@@ -118,7 +124,7 @@ export function Grid3({ }) {
 	});
 	DraggableGridRow.displayName = 'DraggableGridRow';
 
-	return (<>
+	return (<Box sx={{ width: '100%', height: '100%' }} onDragLeave={e => { dragging.current.leave(dragging.current.draggedRow); ghostRef.current.style.display = 'none'; }}>
 		<DataGrid
 			ref={gridRef}
 			apiRef={gridApi}
@@ -190,14 +196,13 @@ export function Grid3({ }) {
 			<Box ref={ghostRef}
 				sx={css`
 					position: fixed;
-					opacity: 0;
-					translate: 100px 100px;
+					opacity: 1;
 					width: 220px;
 					height: 60px;
 					border-radius: 12px;
 					background: linear-gradient(135deg, #1976d2, #42a5f5);
 					box-shadow: 0 10px 30px rgba(25,118,210,0.4);
-					display: flex;
+					display: none;
 					align-items: center;
 					padding: 0 16px;
 					color: white;
@@ -208,7 +213,7 @@ export function Grid3({ }) {
 				`}
 			></Box>
 		</Portal>
-	</>);
+	</Box>);
 }
 
 class RegisterRow {
