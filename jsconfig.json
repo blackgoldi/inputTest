@@ -1,0 +1,33 @@
+{
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "NodeNext",
+		"moduleResolution": "nodenext",
+		"allowImportingTsExtensions": true,
+		"noImplicitAny": true, // запрещает неявные(!) any типы
+		"strictNullChecks": true, // поддержка nullable-типов
+		//"noResolve": false,
+		//"skipLibCheck": false,
+		//"allowJs": true,
+		"checkJs": true, // позволяет не писать @ts-check в каждом файле (без этой опции не будет чекать react-компоненты на обязательные свойства)
+		"jsx": "react-jsx", // убирает ошибку "Cannot use jsx unless the '--jsx' flag is provided", а также "'React' refers to a UMD global, but the current file is a module"
+		"baseUrl": "src",
+		"paths": {
+			"@system/*": [ "system/*.js", "system/*.jsx" ],
+			"@core/*": [ "core/*.js", "core/*.jsx" ],
+			"@model/*": [ "model/*.js" ],
+			// del
+			// "@/*": [ "*" ],
+			//"@test2": [ "/" ],
+			//"@test3/*": [ "./*" ],
+			"@src/*": [ "*" ],
+			//"@import/*": [ "import/*" ],
+			"@components/*": [ "import/*" ]
+			//"@lamp/*": [ "components/canvas1/Lamp/*" ],
+			//"@ps/*": [ "model/ProjectStructures.js" ]
+		}
+	},
+	"include": [
+		"src/**/*"
+	]
+}
