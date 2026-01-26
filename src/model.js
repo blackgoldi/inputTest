@@ -42,6 +42,11 @@ export function useStateProperty(initialValue, debugText = '') {
     };
 }
 
+export function isMobile() {
+    const isTouch = navigator.maxTouchPoints > 0;
+    return /android|iphone|ipad|ipod|iemobile|opera mini/i.test(navigator.userAgent) || isTouch;
+}
+
 /*
 todo
 реализовать мобильные обработчики
