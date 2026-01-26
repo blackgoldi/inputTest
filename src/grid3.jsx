@@ -10,6 +10,25 @@ export function Grid3({ }) {
 	const gridApi = useGridApiRef();
 	const gridRef = React.useRef(null);
 
+	const rowsRef = React.useRef(new Map());
+
+	const ghostRef = React.useRef(null);
+	const dropIndicatorEl = React.useRef(document.createElement('div'));
+	dropIndicatorEl.current.style.cssText = `
+    position: absolute;
+	height: 4px; 
+    background: linear-gradient(90deg, #2196f3, #42a5f5);
+    border-radius: 2px; 
+	box-shadow: 0 2px 8px rgba(33,150,243,0.4);
+    z-index: 10; 
+	pointer-events: none; 
+	left: 0;
+    right: 0; 
+	display: none; 
+	width: 100%;
+	`;
+	const dropIndicatorTarget = React.useRef(null);
+
 	const ghost = document.createElement('div');
 	ghost.style.opacity = 0;
 	ghost.style.width = 0;
@@ -42,13 +61,10 @@ export function Grid3({ }) {
 		// console.log('ERROR!', error);
 	}
 
-	const rowsRef = React.useRef(new Map());
-
-	const ghostRef = React.useRef(null);
-
 	const dragging = React.useRef({
 		draggedRow: null, // RegisterRow
 		targetRow: null, // RegisterRow
+		under: false,// false - перед, true - после
 		startFrom: (row) => {
 			dragging.current.draggedRow = row;
 			rowsRef.current.get(row.id).classList.add('dragged');
@@ -73,7 +89,6 @@ export function Grid3({ }) {
 
 	function handleDragStart(e, row) {
 		console.log('drag start', row.id);
-
 		dragging.current.startFrom(row);
 		ghostRef.current.textContent = `Перетаскиваю: ${dragging.current.draggedRow.name}`;
 
@@ -96,6 +111,18 @@ export function Grid3({ }) {
 		if (row != dragging.current.draggedRow && row != next_row) {
 			e.preventDefault();
 			e.dataTransfer.dropEffect = 'move';
+
+			const gridRow = rowsRef.current.get(row.id);
+
+			const rect = gridRow.getBoundingClientRect();
+			const y = e.clientY - rect.top;
+			dragging.current.under = y < rect.height / 2;
+
+			dropIndicatorEl.current.style.display = 'block';
+			dropIndicatorEl.current.style.top = dragging.current.under ? '0px' : 'auto';
+			dropIndicatorEl.current.style.bottom = dragging.current.under ? 'auto' : '0px';
+			gridRow.appendChild(dropIndicatorEl.current);
+			dropIndicatorTarget.current = gridRow;
 			dragging.current.enter(row);
 		}
 	}
@@ -117,10 +144,11 @@ export function Grid3({ }) {
 		console.log('drop', row.id);
 		let new_rows = rows.get.filter(r => r != dragging.current.draggedRow);
 		const target_idx = new_rows.indexOf(dragging.current.targetRow);
+		const insert_idx = dragging.current.under ? target_idx : target_idx + 1;
 		new_rows = [
-			...new_rows.slice(0, target_idx),
+			...new_rows.slice(0, insert_idx),
 			dragging.current.draggedRow,
-			...new_rows.slice(target_idx)
+			...new_rows.slice(insert_idx)
 		];
 		rows.set(new_rows);
 		dragging.current.end();
@@ -179,6 +207,17 @@ export function Grid3({ }) {
 
 		const next_row = rows.get[rows.get.indexOf(dragging.current.draggedRow) + 1];
 		if (row != dragging.current.draggedRow && row != next_row) {
+
+			const gridRow = rowsRef.current.get(row.id);
+
+			const rect = gridRow.getBoundingClientRect();
+			const y = touch.clientY - rect.top;
+			dragging.current.under = y < rect.height / 2;
+			dropIndicatorEl.current.style.display = 'block';
+			dropIndicatorEl.current.style.top = dragging.current.under ? '0px' : 'auto';
+			dropIndicatorEl.current.style.bottom = dragging.current.under ? 'auto' : '0px';
+			gridRow.appendChild(dropIndicatorEl.current);
+			dropIndicatorTarget.current = gridRow;
 			dragging.current.enter(row);
 		}
 	}
@@ -192,17 +231,18 @@ export function Grid3({ }) {
 		if (!dragging.current.draggedRow) return;
 		let new_rows = rows.get.filter(r => r != dragging.current.draggedRow);
 		const target_idx = new_rows.indexOf(dragging.current.targetRow);
+		const insert_idx = dragging.current.under ? target_idx : target_idx + 1;
 		new_rows = [
-			...new_rows.slice(0, target_idx),
+			...new_rows.slice(0, insert_idx),
 			dragging.current.draggedRow,
-			...new_rows.slice(target_idx)
+			...new_rows.slice(insert_idx)
 		];
 		rows.set(new_rows);
 		dragging.current.end();
 		ghostRef.current.style.display = 'none';
 	}
 
-	return (<Box sx={{ width: '100%', height: '100%' }} onDragLeave={e => { dragging.current.leave(dragging.current.draggedRow); ghostRef.current.style.display = 'none'; }}>
+	return (<Box sx={{ width: '100%', height: '100%' }} onDragLeave={e => ghostRef.current.style.display = 'none'}>
 		<DataGrid
 			ref={gridRef}
 			apiRef={gridApi}
@@ -314,6 +354,7 @@ const ResponsibleDataGrid = css`
   overscroll-behavior-y: none;
   
   & .MuiDataGrid-row {
+  	position: relative;
 	transition: background 1s ease;
 	min-height: 56px !important;
 	touch-action: manipulation !important;
@@ -324,7 +365,7 @@ const ResponsibleDataGrid = css`
 	}
 	
 	&.drag_target {
-		border-top: 3px solid #2196f3;
+		// border-top: 3px solid #2196f3;
 		background: #2196f340;
 	}
   }
