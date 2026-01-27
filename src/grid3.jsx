@@ -1,7 +1,7 @@
 ﻿import { Box, css, Portal } from '@mui/material';
 import { DataGrid, GridCellModes, GridRow, useGridApiRef } from '@mui/x-data-grid'
 import React from 'react';
-import { Register, useStateProperty, model } from './model.js';
+import { Register, useStateProperty, model, isMobile } from './model.js';
 
 export function Grid3({ }) {
 
@@ -296,11 +296,11 @@ export function Grid3({ }) {
 										background: '#d0d0d0'
 									}
 								}}
-								onDragStart={e => handleDragStart(e, params.row)}
-								onTouchStart={e => handleTouchStart(e, params.row)}
+								onDragStart={isMobile() ? undefined : e => handleDragStart(e, params.row)}
+								onTouchStart={isMobile() ? e => handleTouchStart(e, params.row) : undefined}
 								onTouchMove={handleTouchMove}
 								onTouchEnd={handleTouchEnd}
-								onDragEnd={e => handleDragEnd(e, params.row)}
+								onDragEnd={isMobile() ? undefined : e => handleDragEnd(e, params.row)}
 							>
 								<Box sx={{ width: 3, height: 10, bgcolor: 'grey.600', borderRadius: 1 }} />
 								<Box sx={{ width: 3, height: 10, bgcolor: 'grey.600', borderRadius: 1 }} />
