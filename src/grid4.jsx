@@ -1,9 +1,9 @@
-﻿import { Box, css, Portal, Typography } from '@mui/material';
+﻿import { Box, css, Grid, Portal, Stack, Typography } from '@mui/material';
 import { DataGrid, GridCellModes, GridRow, useGridApiRef } from '@mui/x-data-grid'
 import React from 'react';
 import { Register, useStateProperty, model, isMobile } from './model.js';
 
-export function Grid3({ }) {
+export function Grid4({ }) {
 
 	const rows = useStateProperty(model.map(r => new RegisterRow(r)));
 
@@ -13,45 +13,45 @@ export function Grid3({ }) {
 	const rowsRef = React.useRef(new Map());
 
 	const ghostRef = React.useRef(null);
-	const dropIndicatorEl = React.useRef(document.createElement('div'));
-	dropIndicatorEl.current.style.cssText = `
-    position: absolute;
-	height: 4px; 
-    background: linear-gradient(90deg, #2196f3, #42a5f5);
-    border-radius: 2px; 
-	box-shadow: 0 2px 8px rgba(33,150,243,0.4);
-    z-index: 10; 
-	pointer-events: none; 
-	left: 0;
-    right: 0; 
-	display: none; 
-	width: 100%;
-	`;
-	const dropIndicatorTarget = React.useRef(null);
 
-	const ghost = document.createElement('div');
-	ghost.style.opacity = 0;
-	ghost.style.width = 0;
-	ghost.style.height = 0;
+	const dropIndicatorEl = React.useRef(null);
 
 	/**
-	 * @param {RegisterRow} newRow 
-	 * @param {RegisterRow} oldRow 
+	 * @param {Partial<RegisterRow>} newRow 
+	 * @param {Partial<RegisterRow>} oldRow 
 	 */
-	function handleProcessRowUpdate(newRow, oldRow) {
-		console.log(newRow, oldRow);
-		const index = rows.get.findIndex(row => getRowId(row) == getRowId(oldRow));
+	function handleProcessRowUpdate2(newRow, oldRow) {
+		//oldRow.name = newRow.name;
+		//oldRow.bit = newRow.bit;
+		//rows.set([...rows.get]);
+		//return oldRow;
+
+		const index = rows.get.findIndex(r => getRowId(r) == getRowId(oldRow));
+		if (index == -1) { // по идее такое невозможно
+			return oldRow;
+		}
+
+		const newRows = [...rows.get];
+		//const new_r = new RegisterRow(new Register(newRow.name, undefined, newRow.bit, undefined, undefined));
+		newRows[index] = new RegisterRow(new Register(newRow.name, undefined, newRow.bit, undefined, undefined));
+		rows.set(newRows);
+		return newRow;
+	}
+
+	function handleProcessRowUpdate(newRow, oldRow, params) {
+		const index = rows.get.findIndex(r => getRowId(r) == getRowId(oldRow));
 		if (index !== -1) {
 			const newRows = [...rows.get];
 			newRows[index] = new RegisterRow(new Register(newRow.name, newRow.type, newRow.bit, newRow.writable, newRow.description));
-			rows.set(newRows);
-			return newRow;
+			//newRows[index] = newRow
+			rows.set([...newRows]);
+			return newRow; // {...oldRow, ...newRow, id: oldRow.id }
 		}
 		return oldRow;
 	}
 
-	function handleCellClick(params, event) {
-		if (event.target.nodeType == 1 && !event.currentTarget.contains(event.target)) return;
+	function handleCellClick(params, e) {
+		if (e.target.nodeType == 1 && !e.currentTarget.contains(e.target)) return;
 
 		if (params.isEditable && gridApi.current.getCellMode(params.id, params.field) == GridCellModes.View) {
 			gridApi.current.startCellEditMode({ id: params.id, field: params.field });
@@ -66,29 +66,51 @@ export function Grid3({ }) {
 	 * @param {Partial<RegisterRow>} row
 	 */
 	function getRowId(row) {
-		return row.name;
+		return row.id;
 	}
 
 	const dragging = React.useRef({
 		draggedRow: null, // RegisterRow
 		targetRow: null, // RegisterRow
-		under: false,// false - перед, true - после
+		under: false,
 		startFrom: (row) => {
-			console.log('logic start', rows.get[0], row);
 			dragging.current.draggedRow = row;
 			rowsRef.current.get(getRowId(row)).classList.add('dragged');
+			ghostRef.current.textContent = `Перетаскиваю: ${row.name}`;
+		},
+		move: (x, y) => {
+			console.log('logic move');
+			ghostRef.current.style.opacity = '1';
+			ghostRef.current.style.transform = `translate(${x}px, ${y}px)`;
+			const row = dragging.current.targetRow;
+			if (row) {
+				let gridRow = rowsRef.current.get(getRowId(row));
+				//gridRow.classList.add('drag_target');
+				const rect = gridRow.getBoundingClientRect();
+				dragging.current.under = y > rect.top + rect.height / 2;
+				dropIndicatorEl.current.style.opacity = '1';
+				dropIndicatorEl.current.style.top = dragging.current.under ? 'auto' : '0px';
+				dropIndicatorEl.current.style.bottom = dragging.current.under ? '0px' : 'auto';
+				gridRow.appendChild(dropIndicatorEl.current);
+			} else {
+				dropIndicatorEl.current.style.opacity = '0';
+			}
 		},
 		enter: (row) => {
+			console.log('logic enter');
 			dragging.current.targetRow = row;
 			rowsRef.current.get(getRowId(row)).classList.add('drag_target');
 		},
 		leave: (row) => {
+			console.log('logic leave');
 			rowsRef.current.get(getRowId(row)).classList.remove('drag_target');
 			dragging.current.targetRow = null;
 		},
 		end: () => {
+			console.log('logic end');
 			rowsRef.current.get(getRowId(dragging.current.draggedRow)).classList.remove('dragged');
 			dragging.current.draggedRow = null;
+			ghostRef.current.style.opacity = '0';
 			if (dragging.current.targetRow) {
 				rowsRef.current.get(getRowId(dragging.current.targetRow)).classList.remove('drag_target');
 				dragging.current.targetRow = null;
@@ -96,12 +118,37 @@ export function Grid3({ }) {
 		},
 	});
 
-	function handleDragStart(e, row) {
-		console.log('drag start', row.id);
-		dragging.current.startFrom(row);
-		ghostRef.current.textContent = `Перетаскиваю: ${dragging.current.draggedRow.name}`;
+	console.log('render');
 
-		e.dataTransfer.setDragImage(ghost, 0, 0);
+	function moveDraggedRow() {
+		if (!dragging.current.targetRow || dragging.current.targetRow == dragging.current.draggedRow) {
+			return;
+		}
+
+		console.log(rows.get.some(r => r == dragging.current.draggedRow));
+		console.log(rows.get.some(r => getRowId(r) == getRowId(dragging.current.draggedRow)));
+
+		let new_rows = rows.get.filter(r => r != dragging.current.draggedRow);
+		const target_idx = new_rows.indexOf(dragging.current.targetRow) + (dragging.current.under ? 1 : 0);
+		new_rows = [
+			...new_rows.slice(0, target_idx),
+			dragging.current.draggedRow,
+			...new_rows.slice(target_idx)
+		];
+		rows.set(new_rows);
+	}
+
+	function handleDragStart(e, row) {
+		console.log('event drag start', getRowId(row));
+		dragging.current.startFrom(row);
+		e.dataTransfer.setDragImage(document.createElement('div'), 0, 0);
+	}
+
+	function handleTouchStart(e, row) {
+		console.log('event touchStart');
+		if (!e.cancelable) return; // зачем?
+
+		dragging.current.startFrom(row);
 	}
 
 	/**
@@ -109,29 +156,16 @@ export function Grid3({ }) {
 	 * @param {*} row 
 	 */
 	function handleDragOver(e, row) {
-		console.log('drag over', row.id);
+		if (!dragging.current.draggedRow) return;
 
-		ghostRef.current.style.display = 'flex';
+		console.log('event drag over', getRowId(row));
+		if (e.relatedTarget != null) { // избавляемся от срабатывания события на дочерних элементах
+			return;
+		}
 
-		ghostRef.current.style.left = `${e.clientX}px`;
-		ghostRef.current.style.top = `${e.clientY}px`;
-
-		const next_row = rows.get[rows.get.indexOf(dragging.current.draggedRow) + 1];
-		if (row != dragging.current.draggedRow && row != next_row) {
+		if (row != dragging.current.draggedRow) {
 			e.preventDefault();
 			e.dataTransfer.dropEffect = 'move';
-
-			const gridRow = rowsRef.current.get(getRowId(row));
-
-			const rect = gridRow.getBoundingClientRect();
-			const y = e.clientY - rect.top;
-			dragging.current.under = y < rect.height / 2;
-
-			dropIndicatorEl.current.style.display = 'block';
-			dropIndicatorEl.current.style.top = dragging.current.under ? '0px' : 'auto';
-			dropIndicatorEl.current.style.bottom = dragging.current.under ? 'auto' : '0px';
-			gridRow.appendChild(dropIndicatorEl.current);
-			dropIndicatorTarget.current = gridRow;
 			dragging.current.enter(row);
 		}
 	}
@@ -141,8 +175,45 @@ export function Grid3({ }) {
 	 * @param {*} row 
 	 */
 	function handleDragLeave(e, row) {
-		console.log('drag leave', row.id);
+		if (!dragging.current.draggedRow) return;
+
+		console.log('event drag leave', getRowId(row));
+
+		//if (row != dragging.current.targetRow) {
+		//	dragging.current.leave(row);
+		//}
 		dragging.current.leave(row);
+	}
+
+	function handleDragMove(e, row) {
+		if (!dragging.current.draggedRow) return;
+
+		console.log('event drag Move');
+
+		dragging.current.move(e.clientX, e.clientY);
+	}
+
+	/**
+	 * @param {TouchEvent} e 
+	 * @param {*} row 
+	 */
+	function handleTouchMove(e, row) {
+		if (!dragging.current.draggedRow) return;
+
+		console.log('event touchMove');
+
+		const { clientX: x, clientY: y } = e.touches[0];
+
+		const newTargetId = document.elementFromPoint(x, y)?.closest('.MuiDataGrid-row')?.getAttribute('data-id');
+		const target_row = rows.get.find(r => getRowId(r) == newTargetId) ?? null;
+
+		if (dragging.current.targetRow && dragging.current.targetRow != target_row) {
+			dragging.current.leave(dragging.current.targetRow);
+		}
+		if (target_row && target_row != dragging.current.draggedRow) {
+			dragging.current.enter(target_row);
+		}
+		dragging.current.move(x, y);
 	}
 
 	/**
@@ -150,29 +221,36 @@ export function Grid3({ }) {
 	 * @param {*} row 
 	 */
 	function handleDrop(e, row) {
-		console.log('drop', row.id);
+		if (!dragging.current.draggedRow) return;
 
-		console.log(rows.get.some(r => r == dragging.current.draggedRow));
-		console.log(rows.get.some(r => getRowId(r) == getRowId(dragging.current.draggedRow)));
+		console.log('event drop', getRowId(row));
 
-		let new_rows = rows.get.filter(r => r != dragging.current.draggedRow);
-		const target_idx = new_rows.indexOf(dragging.current.targetRow);
-		const insert_idx = dragging.current.under ? target_idx : target_idx + 1;
-		new_rows = [
-			...new_rows.slice(0, insert_idx),
-			dragging.current.draggedRow,
-			...new_rows.slice(insert_idx)
-		];
-		rows.set(new_rows);
+		moveDraggedRow();
 		dragging.current.end();
-		ghostRef.current.style.display = 'none';
 	}
 
 	function handleDragEnd(e, row) {
-		console.warn(row)
+		if (!dragging.current.draggedRow) return;
+
+		console.log('event drag end');
+
 		dragging.current.end();
 	}
 
+	/**
+	 * @param {TouchEvent} e 
+	 * @param {*} row 
+	 */
+	function handleTouchEnd(e, row) {
+		if (!dragging.current.draggedRow) return;
+
+		console.log('event touchEnd');
+
+		moveDraggedRow();
+		dragging.current.end();
+	}
+
+	// из-за этой обертки нельзя после редактирования одной ячейки сразу приступить к редактированию другой (приходится делать лишний клик для сброса фокуса)
 	const DraggableGridRow = React.memo(({ row, ...props }) => {
 
 		return (
@@ -185,82 +263,23 @@ export function Grid3({ }) {
 	});
 	DraggableGridRow.displayName = 'DraggableGridRow';
 
-	const prevRow = React.useRef(null);
+	const state = useStateProperty(false);
 
-	function handleTouchStart(e, row) {
-		console.log('touchStart');
-		if (!e.cancelable) return;
-
-		dragging.current.startFrom(row);
-		ghostRef.current.textContent = `Перетаскиваю: ${dragging.current.draggedRow.name}`;
-
-	}
-
-	function handleTouchMove(e) {
-		console.log('touchMove');
-		if (!dragging.current.draggedRow || !ghostRef.current) return;
-		const touch = e.touches[0];
-
-		ghostRef.current.style.display = 'flex';
-		ghostRef.current.style.left = `${touch.clientX}px`;
-		ghostRef.current.style.top = `${touch.clientY}px`;
-
-		const element = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.MuiDataGrid-row');
-		const newTargetId = element?.getAttribute('data-id');
-		const row = rows.get.find(target => target.name == newTargetId);
-
-		if (!row) {
-			ghostRef.current.style.display = 'none';
-		};
-
-		if (prevRow.current && prevRow.current != row) {
-			dragging.current.leave(prevRow.current);
+	React.useEffect(() => {
+		const handleResize = () => state.set(!state.get);
+		window.addEventListener('resize', handleResize);
+		return () => {
+			window.removeEventListener('resize', handleResize);
 		}
-		prevRow.current = row;
+	});
 
-		const next_row = rows.get[rows.get.indexOf(dragging.current.draggedRow) + 1];
-		if (row != dragging.current.draggedRow && row != next_row) {
-
-			const gridRow = rowsRef.current.get(getRowId(row));
-
-			const rect = gridRow.getBoundingClientRect();
-			const y = touch.clientY - rect.top;
-			dragging.current.under = y < rect.height / 2;
-			dropIndicatorEl.current.style.display = 'block';
-			dropIndicatorEl.current.style.top = dragging.current.under ? '0px' : 'auto';
-			dropIndicatorEl.current.style.bottom = dragging.current.under ? 'auto' : '0px';
-			gridRow.appendChild(dropIndicatorEl.current);
-			dropIndicatorTarget.current = gridRow;
-			dragging.current.enter(row);
-		}
-	}
-
-	/**
-	 * @param {TouchEvent} e 
-	 * @param {*} row 
-	 */
-	function handleTouchEnd(e, row) {
-		console.log('touchEnd');
-		if (!dragging.current.draggedRow) return;
-		let new_rows = rows.get.filter(r => r != dragging.current.draggedRow);
-		const target_idx = new_rows.indexOf(dragging.current.targetRow);
-		const insert_idx = dragging.current.under ? target_idx : target_idx + 1;
-		new_rows = [
-			...new_rows.slice(0, insert_idx),
-			dragging.current.draggedRow,
-			...new_rows.slice(insert_idx)
-		];
-		rows.set(new_rows);
-		dragging.current.end();
-		ghostRef.current.style.display = 'none';
-	}
-
-	return (<Box sx={{ width: '100%' }} onDragLeave={e => ghostRef.current.style.display = 'none'}>
-		<Typography>3</Typography>
+	return (/*<Grid onDragLeave={e => ghostRef.current.style.opacity = '0' }>*/<Stack>
+		<Typography>4</Typography>
 		<DataGrid
 			ref={gridRef}
 			apiRef={gridApi}
 			rows={rows.get}
+			getRowId={getRowId}
 			sx={ResponsibleDataGrid}
 			editMode="cell"
 			disableColumnMenu={true}
@@ -290,8 +309,7 @@ export function Grid3({ }) {
 							userSelect: 'none',
 							WebkitUserSelect: 'none'
 						}}>
-							<Box
-								draggable={true}
+							<Box draggable={true}
 								sx={{
 									height: '36px',
 									width: '36px',
@@ -312,9 +330,11 @@ export function Grid3({ }) {
 								}}
 								onDragStart={isMobile() ? undefined : e => handleDragStart(e, params.row)}
 								onTouchStart={isMobile() ? e => handleTouchStart(e, params.row) : undefined}
-								onTouchMove={handleTouchMove}
-								onTouchEnd={handleTouchEnd}
+								onDrag={isMobile() ? undefined : e => handleDragMove(e, params.row)}
+								onTouchMove={isMobile() ? e => handleTouchMove(e, params.row) : undefined}
 								onDragEnd={isMobile() ? undefined : e => handleDragEnd(e, params.row)}
+								onTouchEnd={isMobile() ? e => handleTouchEnd(e, params.row) : undefined}
+								onContextMenu={e => e.preventDefault()}
 							>
 								<Box sx={{ width: 3, height: 10, bgcolor: 'grey.600', borderRadius: 1 }} />
 								<Box sx={{ width: 3, height: 10, bgcolor: 'grey.600', borderRadius: 1 }} />
@@ -331,13 +351,15 @@ export function Grid3({ }) {
 			<Box ref={ghostRef}
 				sx={css`
 					position: fixed;
-					opacity: 1;
+					left: 0;
+					top: 0;
+					opacity: 0;
 					width: 220px;
 					height: 60px;
 					border-radius: 12px;
 					background: linear-gradient(135deg, #1976d2, #42a5f5);
 					box-shadow: 0 10px 30px rgba(25,118,210,0.4);
-					display: none;
+					display: flex;
 					align-items: center;
 					padding: 0 16px;
 					color: white;
@@ -347,8 +369,23 @@ export function Grid3({ }) {
 					pointer-events: none;
 				`}
 			></Box>
+			<Box ref={dropIndicatorEl}
+				sx={css`
+					position: absolute;
+					opacity: 0;
+					height: 4px; 
+					background: linear-gradient(90deg, #2196f3, #42a5f5);
+					box-shadow: 0 2px 8px rgba(33,150,243,0.4);
+					z-index: 999;
+					pointer-events: none;
+					left: 0;
+					top: 0;
+					display: block;
+					width: 100%;
+				`}
+			></Box>
 		</Portal>
-	</Box>);
+	</Stack>/*</Grid>*/);
 }
 
 class RegisterRow {
@@ -360,10 +397,6 @@ class RegisterRow {
 	}
 
 	//drag = false; // не используется!
-
-	//get id() {
-	//	return this.name;
-	//}
 
 }
 

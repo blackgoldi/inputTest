@@ -1,15 +1,13 @@
-﻿import { Box, ButtonGroup, Button, css, Stack, Typography } from '@mui/material';
-import { DataGrid, GridCellModes, GridRow, useGridApiRef } from '@mui/x-data-grid'
+﻿import { Box, ButtonGroup, Button, css } from '@mui/material';
+import { DataGrid, GridCellModes, useGridApiRef } from '@mui/x-data-grid'
 import React from 'react';
 import { Register, useStateProperty, model } from './model.js';
 
-export function Grid2({ }) {
+export function Grid1({ }) {
 
 	const rows = useStateProperty(model);
 
 	const gridApi = useGridApiRef();
-	const gridRef = React.useRef(null);
-
 	const [draggedRowId, setDraggedRowId] = React.useState(null);
 	const dragGhostRef = React.useRef(null);
 	const dropTargetId = React.useRef(null);
@@ -17,6 +15,7 @@ export function Grid2({ }) {
 	const dropIndicatorEl = React.useRef(null);
 	const lastIndicatorTargetId = React.useRef(null);
 	let lastIndicatorPosition = null;
+
 
 	/**
 	 * @param {Register} newRow 
@@ -51,28 +50,22 @@ export function Grid2({ }) {
 
 	// ==== ЕДИНАЯ DRAG & DROP ЛОГИКА ====
 	function handleDragStart(e, rowId) {
-		console.log('drag start');
 		setDraggedRowId(rowId);
+
 
 		// Создаем ghost изображение ТОЛЬКО для ПК (не добавляем в DOM)
 		const ghost = document.createElement('div');
 		ghost.id = 'drag-ghost';
 		ghost.style.cssText = `
-			width: 220px;
-			height: 60px;
-			border-radius: 12px;
-			background: linear-gradient(135deg, #1976d2, #42a5f5);
-			box-shadow: 0 10px 30px rgba(25,118,210,0.4);
-			display: flex;
-			align-items: center;
-			padding: 0 16px;
-			color: white;
-			font-weight: 600;
-			font-size: 14px;
-			backdrop-filter: blur(10px);
-			pointer-events: none;
-		`;
-		ghost.textContent = `Перетаскиваю: ${rowId}. Встану на место ${lastIndicatorTargetId.current}`;
+	width: 220px; height: 60px; border-radius: 12px;
+	background: linear-gradient(135deg, #1976d2, #42a5f5);
+	box-shadow: 0 10px 30px rgba(25,118,210,0.4);
+	display: flex; align-items: center; padding: 0 16px;
+	color: white; font-weight: 600; font-size: 14px;
+	backdrop-filter: blur(10px);
+	pointer-events: none;
+	`;
+		ghost.textContent = `Перетаскиваю: ${rowId}`;
 
 		// НЕ добавляем в body - используем только для setDragImage
 		document.body.appendChild(ghost);
@@ -80,7 +73,7 @@ export function Grid2({ }) {
 
 		e.dataTransfer.setData('text/plain', rowId);
 		e.dataTransfer.effectAllowed = 'move';
-		e.dataTransfer.setDragImage(ghost, 50, 50);
+		e.dataTransfer.setDragImage(ghost, 0, 0);
 
 		// Удаляем ghost через микрозадержку (для корректной работы setDragImage)
 		requestAnimationFrame(() => {
@@ -92,7 +85,6 @@ export function Grid2({ }) {
 	}
 
 	function handleTouchStart(e, rowId) {
-		console.log('touch start');
 		if (!e.cancelable) return;
 
 		document.body.style.overscrollBehaviorY = 'none';
@@ -102,31 +94,30 @@ export function Grid2({ }) {
 		const ghost = document.createElement('div');
 		ghost.id = 'drag-ghost';
 		ghost.style.cssText = `
-			  position: fixed; 
-			  z-index: 9999; 
-			  pointer-events: none; 
-			  left: 20px; top: 20px;
-			  width: 220px; 
-			  height: 60px; 
-			  border-radius: 12px;
-			  background: linear-gradient(135deg, #1976d2, #42a5f5);
-			  box-shadow: 0 10px 30px rgba(25,118,210,0.4);
-			  display: flex; 
-			  align-items: center; 
-			  padding: 0 16px;
-			  opacity: 0.5;
-			  color: white; 
-			  font-weight: 600; 
-			  font-size: 14px;
-			  backdrop-filter: blur(10px);
-		`;
+	  position: fixed; 
+	  z-index: 9999; 
+	  pointer-events: none; 
+	  left: 20px; top: 20px;
+	  width: 220px; 
+	  height: 60px; 
+	  border-radius: 12px;
+	  background: linear-gradient(135deg, #1976d2, #42a5f5);
+	  box-shadow: 0 10px 30px rgba(25,118,210,0.4);
+	  display: flex; 
+	  align-items: center; 
+	  padding: 0 16px;
+	  opacity: 0.5;
+	  color: white; 
+	  font-weight: 600; 
+	  font-size: 14px;
+	  backdrop-filter: blur(10px);
+	`;
 		ghost.textContent = `Перетаскиваю: ${rowId}. Встану на место ${lastIndicatorTargetId.current}`;
 		document.body.appendChild(ghost);
 		dragGhostRef.current = ghost;
 	}
 
 	function handleTouchMove(e) {
-		console.log('touch move');
 		if (!draggedRowId || !dragGhostRef.current) return;
 
 		const touch = e.touches[0];
@@ -150,15 +141,15 @@ export function Grid2({ }) {
 	}
 
 	function handleTouchEnd(e) {
-		console.log('touch end');
 		if (!draggedRowId) return;
+
 		const touch = e.changedTouches[0];
 		const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
 		const targetRowId = targetElement?.closest('.MuiDataGrid-row')?.getAttribute('data-id');
 
 		if (targetRowId && targetRowId !== draggedRowId) {
 			// ✅ Точное позиционирование и для touch
-			const targetRow = gridRef.current.querySelector(`[data-id="${targetRowId}"]`);
+			const targetRow = document.querySelector(`[data-id="${targetRowId}"]`);
 			const rect = targetRow.getBoundingClientRect();
 			const position = touch.clientY - rect.top < rect.height / 2 ? 0 : 1;
 			moveRowToPosition(draggedRowId, targetRowId, position);
@@ -180,14 +171,14 @@ export function Grid2({ }) {
 		if (dragGhostRef.current) {
 			try {
 				document.body.removeChild(dragGhostRef.current);
-			} catch (ex) {
-				console.log(ex);
-			}
+			} catch (e) { }
 			dragGhostRef.current = null;
 		}
 
 		document.body.style.overscrollBehaviorY = '';
 	}
+
+
 
 	// Замените функцию updateDropTarget:
 	function updateDropIndicator(targetId, position) {
@@ -200,7 +191,7 @@ export function Grid2({ }) {
 			return;
 		}
 
-		const targetRow = gridRef.current.querySelector(`[data-id="${targetId}"]`);
+		const targetRow = document.querySelector(`[data-id="${targetId}"]`);
 		if (!targetRow) return;
 
 		// ✅ Создаем индикатор ТОЛЬКО ОДИН РАЗ
@@ -208,15 +199,15 @@ export function Grid2({ }) {
 			dropIndicatorEl.current = document.createElement('div');
 			dropIndicatorEl.current.className = 'drop-indicator';
 			dropIndicatorEl.current.style.cssText = `
-				  position: fixed !important;
-				  height: 4px;
-				  background: linear-gradient(90deg, #2196f3, #42a5f5) !important;
-				  border-radius: 2px;
-				  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.4);
-				  z-index: 10000 !important;
-				  pointer-events: none !important;
-				  display: none;
-			`;
+	  position: fixed !important;
+	  height: 4px;
+	  background: linear-gradient(90deg, #2196f3, #42a5f5) !important;
+	  border-radius: 2px;
+	  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.4);
+	  z-index: 10000 !important;
+	  pointer-events: none !important;
+	  display: none;
+	`;
 			document.body.appendChild(dropIndicatorEl.current);
 		}
 
@@ -266,7 +257,6 @@ export function Grid2({ }) {
 		if (!draggedRowId) return;
 
 		const handleDragOver = (e) => {
-			console.log('drag over');
 			e.preventDefault();
 			e.dataTransfer.dropEffect = 'move';
 
@@ -282,8 +272,10 @@ export function Grid2({ }) {
 			}
 		};
 
+		const handleDragEnter = (e) => e.preventDefault();
+		const handleDragLeave = () => { };
+
 		const handleDrop = (e) => {
-			console.log('drop');
 			e.preventDefault();
 			const rowId = e.dataTransfer.getData('text/plain');
 			const targetRow = e.target.closest('.MuiDataGrid-row');
@@ -297,11 +289,7 @@ export function Grid2({ }) {
 			cleanupDrag();
 		};
 
-		const handleDragEnter = (e) => e.preventDefault();
-
-		const handleDragLeave = (e) => { };
-
-		const gridContainer = gridRef.current;
+		const gridContainer = document.querySelector('.MuiDataGrid-root');
 		if (gridContainer) {
 			gridContainer.addEventListener('dragover', handleDragOver);
 			gridContainer.addEventListener('dragenter', handleDragEnter);
@@ -319,13 +307,13 @@ export function Grid2({ }) {
 		};
 	}, [draggedRowId]);
 
-	return (<Stack>
-		<Typography>2</Typography>
+
+
+	return (
 		<DataGrid
-			ref={gridRef}
+			sx={ResponsibleDataGrid}
 			apiRef={gridApi}
 			rows={rows.get}
-			sx={ResponsibleDataGrid}
 			editMode="cell"
 			disableColumnMenu={true}
 			hideFooterSelectedRowCount={true}
@@ -386,10 +374,9 @@ export function Grid2({ }) {
 					)
 				},
 				{ field: 'name', headerName: 'Название', editable: true, sortable: false, flex: 1, valueGetter: (value) => value ?? '' },
-				{ field: 'bit', headerName: 'bit', editable: true, type: 'singleSelect', valueOptions: [1, 2, 3, 4, 5], sortable: false, flex: 1 },
 			]}
 		/>
-	</Stack>);
+	)
 }
 
 const ResponsibleDataGrid = css`
