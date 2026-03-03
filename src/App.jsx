@@ -13,7 +13,7 @@ function App() {
 			{/*<Grid6/>*/}
 			{/*<Grid2/>*/}
 			<Grid size="auto">
-				<Grid3 />
+				<Grid2 />
 			</Grid>
 			<Grid size={2}>
 				<Grid3 />

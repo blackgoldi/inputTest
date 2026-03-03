@@ -401,4 +401,21 @@ const ResponsibleDataGrid = css`
 	background: linear-gradient(90deg, #fff3cd 0%, #ffeaa7 100%) !important;
 	box-shadow: inset 0 0 0 2px #ffc107;
   }
+	}
+  }
+  
+  @media(max-width: 768px) {
+	.toolBar > * { 
+	  display: flex; 
+	  flex-direction: column; 
+	}
+	.MuiDataGrid-row { 
+	  min-height: 64px !important; 
+	}
+  }
+  
+  & .duplicate-warning {
+	background: linear-gradient(90deg, #fff3cd 0%, #ffeaa7 100%) !important;
+	box-shadow: inset 0 0 0 2px #ffc107;
+  }
 `;

@@ -66,7 +66,7 @@ export function Grid4({ }) {
 	 * @param {Partial<RegisterRow>} row
 	 */
 	function getRowId(row) {
-		return row.id;
+		return row.name;
 	}
 
 	const dragging = React.useRef({
@@ -118,15 +118,10 @@ export function Grid4({ }) {
 		},
 	});
 
-	console.log('render');
-
 	function moveDraggedRow() {
 		if (!dragging.current.targetRow || dragging.current.targetRow == dragging.current.draggedRow) {
 			return;
 		}
-
-		console.log(rows.get.some(r => r == dragging.current.draggedRow));
-		console.log(rows.get.some(r => getRowId(r) == getRowId(dragging.current.draggedRow)));
 
 		let new_rows = rows.get.filter(r => r != dragging.current.draggedRow);
 		const target_idx = new_rows.indexOf(dragging.current.targetRow) + (dragging.current.under ? 1 : 0);
@@ -255,23 +250,22 @@ export function Grid4({ }) {
 
 		return (
 			<GridRow ref={el => { rowsRef.current.set(getRowId(row), el); }} row={row} {...props}
-				onDragOver={e => handleDragOver(e, row)}
-				onDragLeave={e => handleDragLeave(e, row)}
-				onDrop={e => handleDrop(e, row)}
+				onDragOver={isMobile() ? undefined : e => handleDragOver(e, row)}
+				onDragLeave={isMobile() ? undefined : e => handleDragLeave(e, row)}
+				onDrop={isMobile() ? undefined : e => handleDrop(e, row)}
 			/>
 		);
 	});
 	DraggableGridRow.displayName = 'DraggableGridRow';
 
-	const state = useStateProperty(false);
-
-	React.useEffect(() => {
-		const handleResize = () => state.set(!state.get);
-		window.addEventListener('resize', handleResize);
-		return () => {
-			window.removeEventListener('resize', handleResize);
-		}
-	});
+	// const state = useStateProperty(false);
+	// React.useEffect(() => {
+	// 	const handleResize = () => state.set(!state.get);
+	// 	window.addEventListener('resize', handleResize);
+	// 	return () => {
+	// 		window.removeEventListener('resize', handleResize);
+	// 	}
+	// });
 
 	return (/*<Grid onDragLeave={e => ghostRef.current.style.opacity = '0' }>*/<Stack>
 		<Typography>4</Typography>
