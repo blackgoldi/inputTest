@@ -41,6 +41,7 @@ export function Grid4({ }) {
 	function handleProcessRowUpdate(newRow, oldRow, params) {
 		const index = rows.get.findIndex(r => getRowId(r) == getRowId(oldRow));
 		if (index !== -1) {
+			console.log(1);
 			const newRows = [...rows.get];
 			newRows[index] = new RegisterRow(new Register(newRow.name, newRow.type, newRow.bit, newRow.writable, newRow.description));
 			//newRows[index] = newRow
