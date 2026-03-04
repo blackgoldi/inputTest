@@ -36,7 +36,6 @@ export function Grid4({ }) {
 		newRows[index] = new RegisterRow(new Register(newRow.name, undefined, newRow.bit, undefined, undefined));
 		rows.set(newRows);
 		rows.set(newRows);
-		rows.set(newRows);
 		return newRow;
 	}
 
