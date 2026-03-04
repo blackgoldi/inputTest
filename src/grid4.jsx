@@ -36,6 +36,7 @@ export function Grid4({ }) {
 		newRows[index] = new RegisterRow(new Register(newRow.name, undefined, newRow.bit, undefined, undefined));
 		rows.set(newRows);
 		return newRow;
+		return newRow;
 	}
 
 	function handleProcessRowUpdate(newRow, oldRow, params) {
